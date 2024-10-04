@@ -6,23 +6,37 @@ import argparse
 def parse_soapui_project(xml_file):
     tree = ET.parse(xml_file)
     root = tree.getroot()
-    # Define namespaces used in SoapUI project files
     namespaces = {'con': 'http://eviware.com/soapui/config'}
 
-    # Initialize a list to hold all requests
     requests = []
 
-    # Iterate over test suites
+    # Iterate over TestSuites
     for testsuite in root.findall('con:TestSuite', namespaces):
         suite_name = testsuite.get('name')
-        # Iterate over test cases within each test suite
+        print(f"Found TestSuite: {suite_name}")
+        # Iterate over TestCases within each TestSuite
         for testcase in testsuite.findall('con:TestCase', namespaces):
             case_name = testcase.get('name')
-            # Iterate over test steps within each test case
-            for teststep in testcase.findall('con:TestStep', namespaces):
-                step_type = teststep.get('type')
-                if step_type in ['restrequest', 'httprequest']:
-                    # Extract request details
+            print(f"  Found TestCase: {case_name}")
+            # Iterate over TestSteps within each TestCase
+            teststeps = testcase.find('con:TestStepList', namespaces)
+            if teststeps is not None:
+                for teststep in teststeps.findall('con:TestStep', namespaces):
+                    step_name = teststep.get('name')
+                    step_type = teststep.get('type')
+                    print(f"    Found TestStep: {step_name} of type {step_type}")
+                    # Now extract the request details from the TestStep
+                    request = extract_request(teststep, namespaces)
+                    if request:
+                        request['suite_name'] = suite_name
+                        request['case_name'] = case_name
+                        requests.append(request)
+            else:
+                # For some projects, TestSteps might be directly under TestCase
+                for teststep in testcase.findall('con:TestStep', namespaces):
+                    step_name = teststep.get('name')
+                    step_type = teststep.get('type')
+                    print(f"    Found TestStep: {step_name} of type {step_type}")
                     request = extract_request(teststep, namespaces)
                     if request:
                         request['suite_name'] = suite_name
@@ -31,38 +45,62 @@ def parse_soapui_project(xml_file):
     return requests
 
 def extract_request(teststep, namespaces):
-    name = teststep.get('name')
-    config = teststep.find('con:config', namespaces)
-    if config is not None:
-        # Extract HTTP method
-        method = config.findtext('con:method', default='GET', namespaces=namespaces)
-        # Extract endpoint and resource path
-        endpoint = config.findtext('con:endpoint', namespaces=namespaces)
-        resourcePath = config.findtext('con:resourcePath', default='', namespaces=namespaces)
-        # Build the full URL
-        url = endpoint + resourcePath
-        # Extract headers
-        headers = []
-        headers_node = config.find('con:headers', namespaces)
-        if headers_node is not None:
-            for header in headers_node.findall('con:entry', namespaces):
-                header_name = header.get('key')
-                header_value = header.text or ''
-                headers.append({"key": header_name, "value": header_value})
-        # Extract request body
-        request_node = config.find('con:request', namespaces)
-        if request_node is not None:
-            request_body = request_node.text or ''
-        else:
-            request_body = ''
-        return {
-            'name': name,
-            'method': method,
-            'url': url,
-            'headers': headers,
-            'body': request_body
-        }
-    return None
+    # Determine the type of the test step
+    step_type = teststep.get('type')
+    step_name = teststep.get('name')
+
+    if step_type == 'restrequest':
+        # Extract REST request details
+        config = teststep.find('con:config', namespaces)
+        if config is not None:
+            method = config.findtext('con:method', default='GET', namespaces=namespaces)
+            endpoint = config.findtext('con:endpoint', namespaces=namespaces)
+            resource_path = config.findtext('con:resourcePath', default='', namespaces=namespaces)
+            url = (endpoint or '') + (resource_path or '')
+            # Extract headers
+            headers = []
+            headers_node = config.find('con:headers', namespaces)
+            if headers_node is not None:
+                for header in headers_node.findall('con:entry', namespaces):
+                    header_name = header.get('key')
+                    header_value = header.text or ''
+                    headers.append({"key": header_name, "value": header_value})
+            # Extract request body
+            request_node = config.find('con:request', namespaces)
+            request_body = request_node.text if request_node is not None else ''
+            return {
+                'name': step_name,
+                'method': method,
+                'url': url,
+                'headers': headers,
+                'body': request_body
+            }
+    elif step_type == 'httprequest':
+        # Extract HTTP request details
+        config = teststep.find('con:config', namespaces)
+        if config is not None:
+            method = config.findtext('con:method', default='GET', namespaces=namespaces)
+            url = config.findtext('con:url', namespaces=namespaces)
+            # Extract headers
+            headers = []
+            headers_node = config.find('con:requestHeaders', namespaces)
+            if headers_node is not None:
+                for header in headers_node.findall('con:entry', namespaces):
+                    header_name = header.get('key')
+                    header_value = header.text or ''
+                    headers.append({"key": header_name, "value": header_value})
+            # Extract request body
+            request_body = config.findtext('con:request', default='', namespaces=namespaces)
+            return {
+                'name': step_name,
+                'method': method,
+                'url': url,
+                'headers': headers,
+                'body': request_body
+            }
+    else:
+        print(f"Unsupported test step type: {step_type}")
+        return None
 
 def build_postman_collection(requests):
     collection = {
