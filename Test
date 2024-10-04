@@ -1,0 +1,135 @@
+import xml.etree.ElementTree as ET
+import json
+import sys
+import argparse
+
+def parse_soapui_project(xml_file):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    # Define namespaces used in SoapUI project files
+    namespaces = {'con': 'http://eviware.com/soapui/config'}
+
+    # Initialize a list to hold all requests
+    requests = []
+
+    # Iterate over test suites
+    for testsuite in root.findall('con:TestSuite', namespaces):
+        suite_name = testsuite.get('name')
+        # Iterate over test cases within each test suite
+        for testcase in testsuite.findall('con:TestCase', namespaces):
+            case_name = testcase.get('name')
+            # Iterate over test steps within each test case
+            for teststep in testcase.findall('con:TestStep', namespaces):
+                step_type = teststep.get('type')
+                if step_type in ['restrequest', 'httprequest']:
+                    # Extract request details
+                    request = extract_request(teststep, namespaces)
+                    if request:
+                        request['suite_name'] = suite_name
+                        request['case_name'] = case_name
+                        requests.append(request)
+    return requests
+
+def extract_request(teststep, namespaces):
+    name = teststep.get('name')
+    config = teststep.find('con:config', namespaces)
+    if config is not None:
+        # Extract HTTP method
+        method = config.findtext('con:method', default='GET', namespaces=namespaces)
+        # Extract endpoint and resource path
+        endpoint = config.findtext('con:endpoint', namespaces=namespaces)
+        resourcePath = config.findtext('con:resourcePath', default='', namespaces=namespaces)
+        # Build the full URL
+        url = endpoint + resourcePath
+        # Extract headers
+        headers = []
+        headers_node = config.find('con:headers', namespaces)
+        if headers_node is not None:
+            for header in headers_node.findall('con:entry', namespaces):
+                header_name = header.get('key')
+                header_value = header.text or ''
+                headers.append({"key": header_name, "value": header_value})
+        # Extract request body
+        request_node = config.find('con:request', namespaces)
+        if request_node is not None:
+            request_body = request_node.text or ''
+        else:
+            request_body = ''
+        return {
+            'name': name,
+            'method': method,
+            'url': url,
+            'headers': headers,
+            'body': request_body
+        }
+    return None
+
+def build_postman_collection(requests):
+    collection = {
+        "info": {
+            "name": "Imported from SoapUI",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        },
+        "item": []
+    }
+
+    # Organize requests by test suite and test case
+    suites = {}
+    for req in requests:
+        suite_name = req['suite_name']
+        case_name = req['case_name']
+        if suite_name not in suites:
+            suites[suite_name] = {}
+        if case_name not in suites[suite_name]:
+            suites[suite_name][case_name] = []
+        suites[suite_name][case_name].append(req)
+
+    # Build the collection items
+    for suite_name, cases in suites.items():
+        suite_item = {
+            "name": suite_name,
+            "item": []
+        }
+        for case_name, reqs in cases.items():
+            case_item = {
+                "name": case_name,
+                "item": []
+            }
+            for req in reqs:
+                request_item = {
+                    "name": req['name'],
+                    "request": {
+                        "method": req['method'],
+                        "header": req['headers'],
+                        "body": {
+                            "mode": "raw",
+                            "raw": req['body']
+                        },
+                        "url": {
+                            "raw": req['url'],
+                            "host": req['url']
+                        }
+                    }
+                }
+                case_item['item'].append(request_item)
+            suite_item['item'].append(case_item)
+        collection['item'].append(suite_item)
+    return collection
+
+def main():
+    parser = argparse.ArgumentParser(description='Convert SoapUI test cases to Postman collection')
+    parser.add_argument('input_file', help='Path to the SoapUI project XML file')
+    parser.add_argument('output_file', help='Path to the output Postman collection JSON file')
+    args = parser.parse_args()
+
+    requests = parse_soapui_project(args.input_file)
+    if not requests:
+        print("No requests found in the SoapUI project file.")
+        sys.exit(1)
+    collection = build_postman_collection(requests)
+    with open(args.output_file, 'w') as f:
+        json.dump(collection, f, indent=2)
+    print(f"Postman collection saved to {args.output_file}")
+
+if __name__ == '__main__':
+    main()
