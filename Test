@@ -18,30 +18,17 @@ def parse_soapui_project(xml_file):
         for testcase in testsuite.findall('con:TestCase', namespaces):
             case_name = testcase.get('name')
             print(f"  Found TestCase: {case_name}")
-            # Iterate over TestSteps within each TestCase
-            teststeps = testcase.find('con:TestStepList', namespaces)
-            if teststeps is not None:
-                for teststep in teststeps.findall('con:TestStep', namespaces):
-                    step_name = teststep.get('name')
-                    step_type = teststep.get('type')
-                    print(f"    Found TestStep: {step_name} of type {step_type}")
-                    # Now extract the request details from the TestStep
-                    request = extract_request(teststep, namespaces)
-                    if request:
-                        request['suite_name'] = suite_name
-                        request['case_name'] = case_name
-                        requests.append(request)
-            else:
-                # For some projects, TestSteps might be directly under TestCase
-                for teststep in testcase.findall('con:TestStep', namespaces):
-                    step_name = teststep.get('name')
-                    step_type = teststep.get('type')
-                    print(f"    Found TestStep: {step_name} of type {step_type}")
-                    request = extract_request(teststep, namespaces)
-                    if request:
-                        request['suite_name'] = suite_name
-                        request['case_name'] = case_name
-                        requests.append(request)
+            # Iterate over TestSteps directly under TestCase
+            for teststep in testcase.findall('con:TestStep', namespaces):
+                step_name = teststep.get('name')
+                step_type = teststep.get('type')
+                print(f"    Found TestStep: {step_name} of type {step_type}")
+                # Now extract the request details from the TestStep
+                request = extract_request(teststep, namespaces)
+                if request:
+                    request['suite_name'] = suite_name
+                    request['case_name'] = case_name
+                    requests.append(request)
     return requests
 
 def extract_request(teststep, namespaces):
