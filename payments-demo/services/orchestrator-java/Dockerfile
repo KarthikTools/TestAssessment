@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk-alpine as build
+FROM amazoncorretto:17-alpine as build
 
 WORKDIR /workspace/app
 
@@ -17,7 +17,7 @@ COPY src src
 RUN ./gradlew build -x test --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM amazoncorretto:17-alpine
 
 VOLUME /tmp
 

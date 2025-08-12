@@ -31,33 +31,35 @@ cd ../..
 echo ""
 echo "2️⃣ Starting Mock Services..."
 
-# Start WireMock (if you have Java)
+# Start WireMock with the downloaded JAR
 echo "   Starting WireMock on port 18080..."
-cd mocks/wiremock-ext
-if [ -f "build/libs/wiremock-ext-1.0.0.jar" ]; then
-    echo "   Using built extension JAR"
-    cd ../..
-    java -cp "mocks/wiremock-ext/build/libs/wiremock-ext-1.0.0.jar:$(find ~/.m2 -name 'wiremock-standalone-*.jar' | head -1)" \
-         com.github.tomakehurst.wiremock.standalone.WireMockServerRunner \
-         --port 18080 \
-         --extensions com.demo.wm.RiskTransformer \
-         --root-dir mocks/wiremock &
+cd mocks/wiremock
+if [ -f "wiremock-standalone-3.6.0.jar" ]; then
+    echo "   Using downloaded WireMock JAR"
+    java -jar wiremock-standalone-3.6.0.jar --port 18080 &
     WIREMOCK_PID=$!
     echo "   WireMock started with PID: $WIREMOCK_PID"
 else
-    echo "   ⚠️  WireMock extension not built, using basic WireMock"
-    cd ../..
-    # You can download WireMock standalone JAR here if needed
-    echo "   Please build WireMock extension first: cd mocks/wiremock-ext && ./gradlew clean jar"
+    echo "   ❌ WireMock JAR not found!"
+    echo "   Please ensure wiremock-standalone-3.6.0.jar is in mocks/wiremock/"
+    exit 1
 fi
+cd ../..
 
-# Start MockServer (if you have Java)
+# Start MockServer with the downloaded JAR
 echo "   Starting MockServer on port 18081..."
-if command -v java &> /dev/null; then
-    # You can download MockServer standalone JAR here
-    echo "   Please download MockServer standalone JAR and run:"
-    echo "   java -jar mockserver-netty-5.15.0-jar-with-dependencies.jar -serverPort 18081"
+cd mocks/mockserver
+if [ -f "mockserver-netty-5.15.0-jar-with-dependencies.jar" ]; then
+    echo "   Using downloaded MockServer JAR"
+    java -jar mockserver-netty-5.15.0-jar-with-dependencies.jar -serverPort 18081 &
+    MOCKSERVER_PID=$!
+    echo "   MockServer started with PID: $MOCKSERVER_PID"
+else
+    echo "   ❌ MockServer JAR not found!"
+    echo "   Please ensure mockserver-netty-5.15.0-jar-with-dependencies.jar is in mocks/mockserver/"
+    exit 1
 fi
+cd ../..
 
 echo ""
 echo "3️⃣ Starting Spring Boot Orchestrator..."
@@ -115,17 +117,18 @@ EOF
 echo ""
 echo "4️⃣ Demo Components Status:"
 echo "   ✅ Python MagicMock tests: READY"
-echo "   ⚠️  WireMock: $([ -n "$WIREMOCK_PID" ] && echo "RUNNING (PID: $WIREMOCK_PID)" || echo "NEEDS SETUP")"
-echo "   ⚠️  MockServer: NEEDS SETUP"
+echo "   ✅ WireMock: RUNNING (PID: $WIREMOCK_PID)"
+echo "   ✅ MockServer: RUNNING (PID: $MOCKSERVER_PID)"
 echo "   ⚠️  Spring Boot: NEEDS BUILD"
 echo "   ✅ H2 Database: CONFIGURED (in-memory)"
 
 echo ""
 echo "5️⃣ Next Steps:"
-echo "   a) Build WireMock extension: cd mocks/wiremock-ext && ./gradlew clean jar"
-echo "   b) Download MockServer: https://www.mock-server.com/download.html"
-echo "   c) Build Spring Boot: cd services/orchestrator-java && ./gradlew bootRun"
-echo "   d) Import postman/openapi.yaml into Postman"
+echo "   a) Build Spring Boot: cd services/orchestrator-java && ./gradlew bootRun"
+echo "   b) Import postman/openapi.yaml into Postman"
+echo "   c) Test the mock services:"
+echo "      - WireMock: http://localhost:18080/__admin"
+echo "      - MockServer: http://localhost:18081/status"
 
 echo ""
 echo "6️⃣ Alternative Demo Approach:"
