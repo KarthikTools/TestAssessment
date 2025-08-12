@@ -1,0 +1,56 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.6'
+    id 'io.spring.dependency-management' version '1.1.5'
+}
+
+group = 'com.demo.pay'
+version = '0.0.1'
+
+java { 
+    toolchain { 
+        languageVersion = JavaLanguageVersion.of(17) 
+    } 
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo1.maven.org/maven2/' }
+    maven { url 'https://repo.maven.apache.org/maven2/' }
+}
+
+dependencies {
+    // Core Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    
+    // Database (SQLite for local demo, PostgreSQL for production)
+    implementation 'org.xerial:sqlite-jdbc:3.44.1.0'
+    implementation 'org.postgresql:postgresql'
+    
+    // Kafka for event streaming
+    implementation 'org.springframework.kafka:spring-kafka'
+    
+    // Database migrations (Liquibase instead of Flyway)
+    implementation 'org.liquibase:liquibase-core'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
+    testImplementation 'org.testcontainers:postgresql:1.19.7'
+    testImplementation 'org.testcontainers:kafka:1.19.7'
+    testImplementation 'org.testcontainers:mockserver:1.19.7'
+    testImplementation 'org.testcontainers:testcontainers:1.19.7'
+    testImplementation 'org.assertj:assertj-core:3.24.2'
+    
+
+}
+
+test { 
+    useJUnitPlatform() 
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

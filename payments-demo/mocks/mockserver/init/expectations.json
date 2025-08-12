@@ -1,0 +1,12 @@
+[
+  {
+    "httpRequest": { 
+      "method": "POST", 
+      "path": "/tokenize" 
+    },
+    "httpResponseTemplate": {
+      "templateType": "JAVASCRIPT",
+      "template": "function djb2(str){var h=5381; for (var i=0;i<str.length;i++){h=((h<<5)+h)+str.charCodeAt(i);} return h>>>0;} function toBase36(n){return n.toString(36);} function padLeft(s,l,ch){s=String(s); while(s.length<l)s=ch+s; return s;} function gen(req){var body = JSON.parse(req.body); var key = body.payeeId+'|'+body.amount+'|'+(body.currency||'CAD'); var h = djb2(key); var token = 'tok_'+toBase36(h).substring(0,12); var checksum = padLeft(String(h%97),2,'0'); var core = (toBase36(h)+toBase36(h*h)).toUpperCase(); var iban = 'CA'+checksum+padLeft(core,18,'X').substring(0,18); return { panToken: token, iban: iban }; } return { statusCode: 200, headers: [{name:'Content-Type',values:['application/json']}], body: JSON.stringify(gen(request)) };"
+    }
+  }
+]

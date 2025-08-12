@@ -1,0 +1,9 @@
+# Service Virtualization Demo - Python Dependencies
+# No external dependencies needed - MagicMock is built into Python standard library
+
+# For development and testing (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Note: MagicMock is part of unittest.mock in Python standard library
+# No additional packages needed for the core functionality

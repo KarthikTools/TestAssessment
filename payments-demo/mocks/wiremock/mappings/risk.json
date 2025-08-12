@@ -1,0 +1,13 @@
+{
+  "request": { 
+    "method": "GET", 
+    "urlPath": "/risk" 
+  },
+  "response": {
+    "status": 200,
+    "transformers": ["risk-transformer"],
+    "headers": { 
+      "Content-Type": "application/json" 
+    }
+  }
+}

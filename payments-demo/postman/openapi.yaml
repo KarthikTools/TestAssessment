@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: Payments Orchestrator API
+  description: API for orchestrating payment processing with risk scoring and tokenization
+  version: 1.0.0
+  contact:
+    name: Demo Team
+    email: demo@example.com
+
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+  - url: https://mock-server.example.com
+    description: Postman Mock Server
+
+paths:
+  /payments:
+    post:
+      summary: Create a new payment
+      description: |
+        Creates a new payment by orchestrating risk scoring, tokenization, 
+        and persistence. Returns deterministic IDs for the same input.
+      operationId: createPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+            examples:
+              success:
+                summary: Successful payment
+                description: Payment that will be approved
+                value:
+                  payerId: "CUST123"
+                  payeeId: "MER111"
+                  amount: 100.50
+                  currency: "CAD"
+              review:
+                summary: Payment requiring review
+                description: Payment that triggers manual review
+                value:
+                  payerId: "CUST456"
+                  payeeId: "MER222"
+                  amount: 75.25
+                  currency: "USD"
+              reject:
+                summary: Rejected payment
+                description: Payment that will be declined
+                value:
+                  payerId: "CUST999"
+                  payeeId: "MER111"
+                  amount: 9.99
+                  currency: "CAD"
+      responses:
+        "200":
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+              examples:
+                created:
+                  summary: Payment created
+                  description: Payment was approved and created
+                  value:
+                    txnId: "abcd1234ef567890"
+                    status: "CREATED"
+                    riskScore: 90
+                    panToken: "tok_abc123def"
+                    iban: "CA12XXXX1234567890"
+                pending_review:
+                  summary: Payment pending review
+                  description: Payment requires manual review
+                  value:
+                    txnId: "ffffeeee11112222"
+                    status: "PENDING_REVIEW"
+                    riskScore: 75
+                    panToken: "tok_def456ghi"
+                    iban: "CA34YYYY5678901234"
+                declined:
+                  summary: Payment declined
+                  description: Payment was rejected by risk assessment
+                  value:
+                    txnId: "gggggggg22223333"
+                    status: "DECLINED"
+                    riskScore: 60
+                    panToken: null
+                    iban: null
+        "400":
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payments/{txnId}:
+    get:
+      summary: Get payment by transaction ID
+      description: Retrieves payment details by its unique transaction ID
+      operationId: getPayment
+      parameters:
+        - name: txnId
+          in: path
+          required: true
+          description: Unique transaction identifier
+          schema:
+            type: string
+            pattern: '^[a-f0-9]{16}$'
+            example: "abcd1234ef567890"
+      responses:
+        "200":
+          description: Payment found successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        "404":
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payments/health:
+    get:
+      summary: Health check endpoint
+      description: Simple health check to verify service is running
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+
+components:
+  schemas:
+    CreatePaymentRequest:
+      type: object
+      required:
+        - payerId
+        - payeeId
+        - amount
+        - currency
+      properties:
+        payerId:
+          type: string
+          description: Unique identifier for the payer/customer
+          minLength: 1
+          maxLength: 64
+          example: "CUST123"
+        payeeId:
+          type: string
+          description: Unique identifier for the payee/merchant
+          minLength: 1
+          maxLength: 64
+          example: "MER111"
+        amount:
+          type: number
+          format: double
+          description: Payment amount with decimal precision
+          minimum: 0.01
+          maximum: 999999999.99
+          example: 100.50
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          minLength: 3
+          maxLength: 3
+          pattern: '^[A-Z]{3}$'
+          example: "CAD"
+
+    PaymentResponse:
+      type: object
+      required:
+        - txnId
+        - status
+        - riskScore
+      properties:
+        txnId:
+          type: string
+          description: Unique transaction identifier (deterministic for same input)
+          pattern: '^[a-f0-9]{16}$'
+          example: "abcd1234ef567890"
+        status:
+          type: string
+          description: Current status of the payment
+          enum:
+            - CREATED
+            - PENDING_REVIEW
+            - DECLINED
+          example: "CREATED"
+        riskScore:
+          type: integer
+          description: Risk score from external service (55-95)
+          minimum: 55
+          maximum: 95
+          example: 90
+        panToken:
+          type: string
+          nullable: true
+          description: Tokenized PAN (Payment Account Number) for approved payments
+          pattern: '^tok_[a-z0-9]{12}$'
+          example: "tok_abc123def"
+        iban:
+          type: string
+          nullable: true
+          description: International Bank Account Number for approved payments
+          pattern: '^CA[0-9]{2}[A-Z0-9]{18}$'
+          example: "CA12XXXX1234567890"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type/code
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid currency code provided"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2024-01-15T10:30:00Z"
+
+  examples:
+    CreatePaymentRequest:
+      success:
+        value:
+          payerId: "CUST123"
+          payeeId: "MER111"
+          amount: 100.50
+          currency: "CAD"
+      review:
+        value:
+          payerId: "CUST456"
+          payeeId: "MER222"
+          amount: 75.25
+          currency: "USD"
+      reject:
+        value:
+          payerId: "CUST999"
+          payeeId: "MER111"
+          amount: 9.99
+          currency: "CAD"
+
+tags:
+  - name: Payments
+    description: Payment processing operations
+  - name: Health
+    description: Service health monitoring

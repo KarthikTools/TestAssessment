@@ -1,0 +1,31 @@
+server:
+  port: 8088
+
+app:
+  riskBaseUrl: http://localhost:18080
+  tokenizeBaseUrl: http://localhost:18081
+  kafka:
+    bootstrap: localhost:9092
+    topic: payments.events
+
+spring:
+  datasource:
+    url: jdbc:sqlite:payments.db # SQLite database file for local development
+    driver-class-name: org.sqlite.JDBC
+  kafka:
+    bootstrap-servers: ${app.kafka.bootstrap}
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+logging:
+  level:
+    com.demo.pay: DEBUG
+    org.springframework.kafka: DEBUG

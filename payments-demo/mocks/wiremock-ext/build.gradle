@@ -1,0 +1,28 @@
+plugins { 
+    id 'java' 
+}
+
+group = 'com.demo'
+version = '1.0.0'
+
+repositories { 
+    mavenCentral() 
+}
+
+dependencies { 
+    // WireMock core for the extension
+    implementation 'org.wiremock:wiremock:3.6.0' 
+}
+
+tasks.withType(JavaCompile) { 
+    options.release = 17 
+}
+
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'WireMock Risk Transformer',
+            'Implementation-Version': version
+        )
+    }
+}
