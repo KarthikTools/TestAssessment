@@ -100,7 +100,7 @@ The demo simulates a real-world payment processing system where external service
 - **pytest** - Python testing framework
 - **MagicMock** - Mocking library
 - **JUnit 5** - Java testing
-- **Testcontainers** - Integration testing
+- **Testcontainers** - Integration testing with real services
 
 ### **DevOps & Tools**
 - **Gradle 8.13** - Build automation
@@ -179,6 +179,23 @@ cd services/orchestrator-java
 cd docker
 docker-compose -f docker-compose.local.yml up -d
 ```
+
+### **Option 4: Testcontainers Integration Testing**
+```bash
+cd services/orchestrator-java
+./gradlew test
+```
+
+**What Happens**:
+- 🐳 **Docker containers** automatically start for PostgreSQL, Kafka, MockServer
+- 🧪 **Integration tests** run against real services
+- 🧹 **Automatic cleanup** when tests complete
+- 📊 **Test reports** generated in `build/reports/`
+
+**Prerequisites**:
+- Docker Desktop running
+- Sufficient memory (at least 4GB available)
+- Internet connection for Docker image downloads
 
 ---
 
@@ -266,6 +283,52 @@ docker-compose -f docker-compose.local.yml up -d
 - **Port**: 18081
 - **Expectations**: `init/expectations.json`
 - **Status Endpoint**: http://localhost:18081/status
+
+### **5. Testcontainers Integration Testing**
+
+**Location**: `services/orchestrator-java/src/test/java/`
+
+**Key Features**:
+- **Real Service Testing**: Uses actual PostgreSQL, Kafka, and other services
+- **Isolated Environments**: Each test gets a clean, isolated environment
+- **Automatic Lifecycle Management**: Services start/stop automatically
+- **No External Dependencies**: Everything runs in containers during tests
+
+**What Gets Spun Up**:
+- **PostgreSQL Database**: Real database with test data
+- **Kafka Cluster**: Event streaming for payment events
+- **MockServer**: HTTP mock service for external APIs
+- **WireMock**: API mocking service
+
+**Test Examples**:
+```java
+@SpringBootTest
+@Testcontainers
+class PaymentsIT {
+    
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    
+    @Container
+    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.1"));
+    
+    @Container
+    static MockServerContainer mockServer = new MockServerContainer("mockserver/mockserver:5.15.0");
+    
+    @Test
+    void testPaymentFlowWithRealServices() {
+        // Test payment creation with real database and Kafka
+        // This tests the entire integration, not just unit logic
+    }
+}
+```
+
+**Benefits Over Manual Setup**:
+- ✅ **No manual service startup** required
+- ✅ **Consistent test environments** across developers
+- ✅ **Real service behavior** instead of mocked responses
+- ✅ **Automatic cleanup** after tests
+- ✅ **CI/CD friendly** - works in any environment
 
 ---
 
@@ -377,6 +440,18 @@ cd services/orchestrator-java
 # Import: postman/openapi.yaml
 # Run against running services
 ```
+
+#### **4. Testcontainers Integration Tests**
+```bash
+cd services/orchestrator-java
+./gradlew test
+```
+
+**What Testcontainers Does:**
+- **Automatically spins up** PostgreSQL, Kafka, and other services
+- **Creates isolated test environments** for each test run
+- **Manages service lifecycle** (start, stop, cleanup)
+- **Provides real service instances** instead of mocks for integration testing
 
 ---
 
@@ -622,6 +697,25 @@ Username: sa
 Password: (leave empty)
 ```
 
+#### **5. Testcontainers Issues**
+```bash
+# Check Docker status
+docker --version
+docker ps
+
+# Ensure Docker has enough resources
+# Docker Desktop: Settings > Resources > Memory: 4GB+, CPU: 2+
+
+# Check Testcontainers logs
+cd services/orchestrator-java
+./gradlew test --info
+
+# Common issues:
+# - Docker not running: Start Docker Desktop
+# - Insufficient memory: Increase Docker memory allocation
+# - Port conflicts: Stop other services using same ports
+```
+
 ### **Debug Mode**
 
 #### **Spring Boot Debug**
@@ -666,6 +760,13 @@ python3 -m pytest tests/ -v -s --pdb
 1. **Load Test**: Send multiple concurrent requests
 2. **Monitor Services**: Check response times
 3. **Scale Mocks**: Adjust MockServer expectations
+
+### **Scenario 6: Testcontainers Integration Testing**
+1. **Start Docker**: Ensure Docker Desktop is running
+2. **Run Tests**: Execute `./gradlew test` in orchestrator-java directory
+3. **Observe Containers**: Watch Docker containers start automatically
+4. **Check Results**: Review test reports in `build/reports/`
+5. **Verify Cleanup**: Confirm containers are removed after tests
 
 ---
 
